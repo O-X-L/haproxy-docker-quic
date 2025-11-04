@@ -1,0 +1,2 @@
+versions/*/test.cfg
+versions/*/docker-entrypoint.sh

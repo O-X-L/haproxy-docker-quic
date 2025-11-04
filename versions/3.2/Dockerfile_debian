@@ -1,0 +1,86 @@
+FROM debian:bookworm-slim AS openssl-builder
+
+ENV OPENSSL_URL https://github.com/quictls/openssl/archive/refs/tags/openssl-3.3.0-quic1.tar.gz
+
+ENV DEBIAN_FRONTEND=noninteractive
+
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends build-essential ca-certificates curl && \
+    curl -sfSL "${OPENSSL_URL}" -o openssl.tar.gz && \
+    mkdir -p /tmp/openssl && \
+    tar -xzf openssl.tar.gz -C /tmp/openssl --strip-components=1 && \
+    rm -f openssl.tar.gz && \
+    cd /tmp/openssl && \
+    ./config --libdir=lib --prefix=/opt/quictls && \
+    make -j $(nproc) && \
+    make install && \
+    rm -rf /tmp/openssl
+
+FROM debian:bookworm-slim AS haproxy-builder
+
+ENV HAPROXY_BRANCH=3.2
+ENV HAPROXY_MINOR=3.2.7
+ENV HAPROXY_SHA256=1f0ae9dfb0b319e2d5cb6e4cdf931a0877ad88e0090c46cf16faf008fbf54278
+ENV HAPROXY_SRC_URL=https://www.haproxy.org/download
+ENV DEBIAN_FRONTEND=noninteractive
+
+COPY --from=openssl-builder /opt/quictls /opt/quictls
+
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends procps zlib1g "libpcre2-*" liblua5.4-0 libatomic1 tar curl socat ca-certificates && \
+    apt-get install -y --no-install-recommends gcc make libc6-dev libpcre2-dev zlib1g-dev liblua5.4-dev && \
+    curl -sfSL "${HAPROXY_SRC_URL}/${HAPROXY_BRANCH}/src/haproxy-${HAPROXY_MINOR}.tar.gz" -o haproxy.tar.gz && \
+    echo "$HAPROXY_SHA256 *haproxy.tar.gz" | sha256sum -c - && \
+    mkdir -p /tmp/haproxy && \
+    tar -xzf haproxy.tar.gz -C /tmp/haproxy --strip-components=1 && \
+    rm -f haproxy.tar.gz
+
+RUN make -C /tmp/haproxy -j"$(nproc)" TARGET=linux-glibc CPU=generic USE_PCRE2=1 USE_PCRE2_JIT=1 \
+                            USE_TFO=1 USE_LINUX_TPROXY=1 USE_LUA=1 USE_GETADDRINFO=1 \
+                            USE_PROMEX=1 USE_SLZ=1 \
+                            USE_OPENSSL=1 USE_PTHREAD_EMULATION=1 \
+                            SSL_INC=/opt/quictls/include SSL_LIB=/opt/quictls/lib USE_QUIC=1 \
+                            LDFLAGS="-L/opt/quictls/lib -Wl,-rpath,/opt/quictls/lib" \
+                            all
+
+RUN make -C /tmp/haproxy TARGET=linux-glibc install-bin
+
+
+FROM debian:bookworm-slim
+
+LABEL Name="HAProxy"
+LABEL Release="Community Edition"
+LABEL Vendor=HAProxy
+LABEL Version=3.2.7
+LABEL Maintainer="Pascal Rath <contact+haproxy@oxl.at>"
+
+ENV HAPROXY_UID=haproxy
+ENV HAPROXY_GID=haproxy
+ENV DEBIAN_FRONTEND=noninteractive
+
+COPY --from=openssl-builder /opt/quictls /opt/quictls
+COPY --from=haproxy-builder /usr/local/sbin/haproxy /usr/local/sbin/haproxy
+COPY --from=haproxy-builder /tmp/haproxy/examples/errorfiles/ /etc/haproxy/errors
+
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends procps zlib1g "libpcre2-*" liblua5.4-0 libatomic1 tar curl socat ca-certificates && \
+    groupadd "$HAPROXY_GID" && \
+    useradd -g "$HAPROXY_GID" "$HAPROXY_UID" && \
+    ln -s /usr/local/sbin/haproxy /usr/sbin/haproxy && \
+    mkdir -p /var/lib/haproxy && \
+    chown "$HAPROXY_UID:$HAPROXY_GID" /var/lib/haproxy && \
+    mkdir -p /etc/haproxy && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/* && \
+    echo "/opt/quictls/lib" > /etc/ld.so.conf.d/quictls.conf && \
+    mkdir -p /opt/quictls/ssl && \
+    rm -rf /opt/quictls/ssl/certs && \
+    ln -s /etc/ssl/certs /opt/quictls/ssl/certs && \
+    ldconfig
+
+COPY --chmod=755 docker-entrypoint.sh /
+
+STOPSIGNAL SIGUSR1
+
+ENTRYPOINT ["/docker-entrypoint.sh"]
+CMD ["haproxy", "-W", "-f", "/etc/haproxy/haproxy.cfg"]

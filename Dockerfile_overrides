@@ -1,0 +1,9 @@
+FROM haproxy-local:3.2-quic
+
+COPY --chmod=644 shared/test.cfg /etc/haproxy/haproxy.cfg
+COPY --chmod=755 shared/docker-entrypoint.sh /
+
+RUN openssl ecparam -out /etc/ssl/private/haproxy.key -name prime256v1 -genkey && \
+    openssl req -new -x509 -nodes -days 3650 -key /etc/ssl/private/haproxy.key -out /etc/ssl/certs/haproxy.crt -subj "/CN=HAProxy Test" -addext "subjectAltName = DNS:app.template.oxl.app,DNS:localhost,IP:127.0.0.1" && \
+    mkdir /etc/ssl/haproxy && \
+    cat /etc/ssl/certs/haproxy.crt /etc/ssl/private/haproxy.key > /etc/ssl/haproxy/test.pem
