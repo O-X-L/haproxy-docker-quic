@@ -6,14 +6,14 @@ These images are derived from [haproxytech/haproxy-docker-debian-quic](https://g
 
 * The `dataplaneapi` was stripped.
 * Compiling HAProxy was moved to a dedicated build-stage
-* AWS-LC or OpenSSL
+* [AWS-LC](https://github.com/aws/aws-lc) or OpenSSL as cryptographic library | See: [HAProxy Blog](https://www.haproxy.com/blog/state-of-ssl-stacks)
 
 ## Pull
 
 [Docker Hub](https://hub.docker.com/r/oxlorg/haproxy)
 
 * `docker image pull oxlorg/haproxy:debian-quic-latest` | Last version with AWS-LC
-* `docker image pull oxlorg/haproxy:debian-quic-${VERSION}-awslc` | See: [AWS-LC cryptographic library](https://github.com/aws/aws-lc) & [HAProxy Blog](https://www.haproxy.com/blog/state-of-ssl-stacks)
+* `docker image pull oxlorg/haproxy:debian-quic-${VERSION}-awslc`
 * `docker image pull oxlorg/haproxy:debian-quic-${VERSION}-openssl`
 
 Alpine will be added later on.
