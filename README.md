@@ -24,7 +24,12 @@ It might take a while for me to add new versions or re-build existing ones. You 
 
 * Build it: `bash scripts/build.sh 3.2 debian`
 * Add your overrides - for an example see: `Dockerfile_overrides`
-* Test it: `docker run --rm --network=host -it --name haproxy-local haproxy:3.2-quic`
+
+  ```
+  docker build -f Dockerfile_overrides -t 'haproxy-custom:3.2-quic' --network=host --no-cache .
+  ```
+
+* Test it: `docker run --rm --network=host -it --name haproxy haproxy-custom:3.2-quic`
 
 ## Testing
 
