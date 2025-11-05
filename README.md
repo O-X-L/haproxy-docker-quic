@@ -1,4 +1,4 @@
-# HAProxy (Community) Docker Images with QUIC/HTTP3 support
+# HAProxy (Community) Docker Images with QUIC/HTTP3 & AWS-LC support
 
 These images are derived from [haproxytech/haproxy-docker-debian-quic](https://github.com/haproxytech/haproxy-docker-debian-quic) and [haproxytech/haproxy-docker-alpine-quic](https://github.com/haproxytech/haproxy-docker-alpine-quic).
 
@@ -6,12 +6,15 @@ These images are derived from [haproxytech/haproxy-docker-debian-quic](https://g
 
 * The `dataplaneapi` was stripped.
 * Compiling HAProxy was moved to a dedicated build-stage
+* AWS-LC or OpenSSL
 
 ## Pull
 
 [Docker Hub](https://hub.docker.com/r/oxlorg/haproxy)
 
-* `docker image pull oxlorg/haproxy:debian-quic-latest`
+* `docker image pull oxlorg/haproxy:debian-quic-latest` | Last version with AWS-LC
+* `docker image pull oxlorg/haproxy:debian-quic-${VERSION}-awslc` | See: [AWS-LC cryptographic library](https://github.com/aws/aws-lc) & [HAProxy Blog](https://www.haproxy.com/blog/state-of-ssl-stacks)
+* `docker image pull oxlorg/haproxy:debian-quic-${VERSION}-openssl`
 
 Alpine will be added later on.
 

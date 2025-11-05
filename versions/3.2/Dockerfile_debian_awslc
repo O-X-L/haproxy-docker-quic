@@ -1,20 +1,28 @@
-FROM debian:bookworm-slim AS openssl-builder
+FROM debian:bookworm-slim AS aws-lc-builder
 
-ENV OPENSSL_URL https://github.com/quictls/openssl/archive/refs/tags/openssl-3.3.0-quic1.tar.gz
-
+ENV AWSLC_URL=https://github.com/aws/aws-lc.git
+ENV AWSLC_TAG=v1.33.0
 ENV DEBIAN_FRONTEND=noninteractive
 
 RUN apt-get update && \
-    apt-get install -y --no-install-recommends build-essential ca-certificates curl && \
-    curl -sfSL "${OPENSSL_URL}" -o openssl.tar.gz && \
-    mkdir -p /tmp/openssl && \
-    tar -xzf openssl.tar.gz -C /tmp/openssl --strip-components=1 && \
-    rm -f openssl.tar.gz && \
-    cd /tmp/openssl && \
-    ./config --libdir=lib --prefix=/opt/quictls && \
-    make -j $(nproc) && \
-    make install && \
-    rm -rf /tmp/openssl
+    apt-get install -y --no-install-recommends \
+        build-essential \
+        ca-certificates \
+        git \
+        cmake \
+        ninja-build \
+        golang \
+    && \
+    git clone --depth 1 --branch "${AWSLC_TAG}" "${AWSLC_URL}" /tmp/aws-lc && \
+    mkdir /tmp/aws-lc/build && \
+    cd /tmp/aws-lc/build && \
+    cmake -G Ninja \
+          -DCMAKE_INSTALL_PREFIX=/opt/aws-lc \
+          -DCMAKE_BUILD_TYPE=Release \
+          -DBUILD_SHARED_LIBS=ON \
+          .. && \
+    ninja install && \
+    rm -rf /tmp/aws-lc
 
 FROM debian:bookworm-slim AS haproxy-builder
 
@@ -24,7 +32,7 @@ ENV HAPROXY_SHA256=1f0ae9dfb0b319e2d5cb6e4cdf931a0877ad88e0090c46cf16faf008fbf54
 ENV HAPROXY_SRC_URL=https://www.haproxy.org/download
 ENV DEBIAN_FRONTEND=noninteractive
 
-COPY --from=openssl-builder /opt/quictls /opt/quictls
+COPY --from=aws-lc-builder /opt/aws-lc /opt/aws-lc
 
 RUN apt-get update && \
     apt-get install -y --no-install-recommends procps zlib1g "libpcre2-*" liblua5.4-0 libatomic1 tar curl socat ca-certificates && \
@@ -36,15 +44,14 @@ RUN apt-get update && \
     rm -f haproxy.tar.gz
 
 RUN make -C /tmp/haproxy -j"$(nproc)" TARGET=linux-glibc CPU=generic USE_PCRE2=1 USE_PCRE2_JIT=1 \
-                            USE_TFO=1 USE_LINUX_TPROXY=1 USE_LUA=1 USE_GETADDRINFO=1 \
-                            USE_PROMEX=1 USE_SLZ=1 \
-                            USE_OPENSSL=1 USE_PTHREAD_EMULATION=1 \
-                            SSL_INC=/opt/quictls/include SSL_LIB=/opt/quictls/lib USE_QUIC=1 \
-                            LDFLAGS="-L/opt/quictls/lib -Wl,-rpath,/opt/quictls/lib" \
-                            all
+                          USE_TFO=1 USE_LINUX_TPROXY=1 USE_LUA=1 USE_GETADDRINFO=1 \
+                          USE_PROMEX=1 USE_SLZ=1 \
+                          USE_OPENSSL_AWSLC=1 USE_PTHREAD_EMULATION=1 \
+                          SSL_INC=/opt/aws-lc/include SSL_LIB=/opt/aws-lc/lib USE_QUIC=1 \
+                          LDFLAGS="-L/opt/aws-lc/lib -Wl,-rpath,/opt/aws-lc/lib" \
+                          all
 
 RUN make -C /tmp/haproxy TARGET=linux-glibc install-bin
-
 
 FROM debian:bookworm-slim
 
@@ -58,7 +65,7 @@ ENV HAPROXY_UID=haproxy
 ENV HAPROXY_GID=haproxy
 ENV DEBIAN_FRONTEND=noninteractive
 
-COPY --from=openssl-builder /opt/quictls /opt/quictls
+COPY --from=aws-lc-builder /opt/aws-lc /opt/aws-lc
 COPY --from=haproxy-builder /usr/local/sbin/haproxy /usr/local/sbin/haproxy
 COPY --from=haproxy-builder /tmp/haproxy/examples/errorfiles/ /etc/haproxy/errors
 
@@ -72,10 +79,10 @@ RUN apt-get update && \
     mkdir -p /etc/haproxy && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/* && \
-    echo "/opt/quictls/lib" > /etc/ld.so.conf.d/quictls.conf && \
-    mkdir -p /opt/quictls/ssl && \
-    rm -rf /opt/quictls/ssl/certs && \
-    ln -s /etc/ssl/certs /opt/quictls/ssl/certs && \
+    echo "/opt/aws-lc/lib" > /etc/ld.so.conf.d/awslc.conf && \
+    mkdir -p /opt/aws-lc/ssl && \
+    rm -rf /opt/aws-lc/ssl/certs && \
+    ln -s /etc/ssl/certs /opt/aws-lc/ssl/certs && \
     ldconfig
 
 COPY --chmod=755 docker-entrypoint.sh /

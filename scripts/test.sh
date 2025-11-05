@@ -26,6 +26,9 @@ docker build -f Dockerfile_overrides -t "haproxy-local:${VERSION}-quic" --networ
 log 'STARTING'
 docker run --rm --network=host -d --name haproxy-quic-local "haproxy-local:${VERSION}-quic"
 
+log 'SHOW HAPROXY INFO'
+docker exec -it haproxy-quic-local /bin/bash -c 'haproxy -vv'
+
 log 'TESTING HTTP 1.1'
 docker run --network=host -it --rm alpine/curl-http3 curl -v --http1.1 http://172.18.0.1:8080
 
