@@ -12,9 +12,9 @@ These images are derived from [haproxytech/haproxy-docker-debian-quic](https://g
 
 [Docker Hub](https://hub.docker.com/r/oxlorg/haproxy)
 
-* `docker image pull oxlorg/haproxy:debian-quic-latest` | Last version with AWS-LC
-* `docker image pull oxlorg/haproxy:debian-quic-${VERSION}-awslc`
-* `docker image pull oxlorg/haproxy:debian-quic-${VERSION}-openssl`
+* `docker image pull oxlorg/haproxy:debian-quic` | Last version with AWS-LC
+* `docker image pull oxlorg/haproxy:${VERSION}-debian-quic-awslc`
+* `docker image pull oxlorg/haproxy:${VERSION}-debian-quic-openssl`
 
 Alpine will be added later on.
 
