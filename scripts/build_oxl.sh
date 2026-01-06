@@ -13,5 +13,5 @@ docker build -f Dockerfile_debian_awslc -t "oxlorg/haproxy:latest" --network=hos
 
 docker push "oxlorg/haproxy:${VERSION}-debian-quic-openssl"
 docker push "oxlorg/haproxy:${VERSION}-debian-quic-awslc"
-docker push "oxlorg/haproxy:debian-quic-latest"
+docker push "oxlorg/haproxy:debian-quic"
 docker push "oxlorg/haproxy:latest"

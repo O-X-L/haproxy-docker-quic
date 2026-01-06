@@ -54,8 +54,8 @@ LABEL Vendor=HAProxy
 LABEL Version=3.2.9
 LABEL Maintainer="Pascal Rath <contact+haproxy@oxl.at>"
 
-ENV HAPROXY_UID=haproxy
-ENV HAPROXY_GID=haproxy
+ENV HAPROXY_UID=9800
+ENV HAPROXY_GID=9800
 ENV DEBIAN_FRONTEND=noninteractive
 
 COPY --from=openssl-builder /opt/quictls /opt/quictls
@@ -64,8 +64,8 @@ COPY --from=haproxy-builder /tmp/haproxy/examples/errorfiles/ /etc/haproxy/error
 
 RUN apt-get update && \
     apt-get install -y --no-install-recommends procps zlib1g "libpcre2-*" liblua5.4-0 libatomic1 tar curl socat ca-certificates && \
-    groupadd "$HAPROXY_GID" && \
-    useradd -g "$HAPROXY_GID" "$HAPROXY_UID" && \
+    groupadd --gid "$HAPROXY_GID" haproxy && \
+    useradd --gid "$HAPROXY_GID" --uid "$HAPROXY_UID" haproxy && \
     ln -s /usr/local/sbin/haproxy /usr/sbin/haproxy && \
     mkdir -p /var/lib/haproxy && \
     chown "$HAPROXY_UID:$HAPROXY_GID" /var/lib/haproxy && \
@@ -76,7 +76,9 @@ RUN apt-get update && \
     mkdir -p /opt/quictls/ssl && \
     rm -rf /opt/quictls/ssl/certs && \
     ln -s /etc/ssl/certs /opt/quictls/ssl/certs && \
-    ldconfig
+    ldconfig && \
+    groupadd --gid 113 ssl-cert && \
+    usermod -a -G ssl-cert haproxy
 
 COPY --chmod=755 docker-entrypoint.sh /
 
