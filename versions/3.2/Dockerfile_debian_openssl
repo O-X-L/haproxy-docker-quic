@@ -85,4 +85,4 @@ COPY --chmod=755 docker-entrypoint.sh /
 STOPSIGNAL SIGUSR1
 
 ENTRYPOINT ["/docker-entrypoint.sh"]
-CMD ["haproxy", "-W", "-f", "/etc/haproxy/haproxy.cfg"]
+CMD ["/usr/local/sbin/haproxy", "-W", "-db", "-f", "/etc/haproxy/haproxy.cfg"]
